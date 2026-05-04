@@ -1,9 +1,9 @@
 from pypboy import BaseModule
 from pypboy.modules.data import local_map
-from pypboy.modules.data import world_map
 from pypboy.modules.data import quests
 from pypboy.modules.data import misc
 from pypboy.modules.data import radio
+from pypboy.modules.stats import general
 
 
 class Module(BaseModule):
@@ -14,7 +14,7 @@ class Module(BaseModule):
 	def __init__(self, *args, **kwargs):
 		self.submodules = [
 			local_map.Module(self),
-			world_map.Module(self),
+			general.Module(self),
 			quests.Module(self),
 			misc.Module(self),
 			radio.Module(self)

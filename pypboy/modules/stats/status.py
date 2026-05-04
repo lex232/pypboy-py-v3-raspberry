@@ -26,13 +26,13 @@ class Module(pypboy.SubModule):
 		super(Module, self).handle_resume()
 
 	def show_cnd(self):
-		print "CND"
+		print("CND")
 
 	def show_rad(self):
-		print "RAD"
+		print("RAD")
 
 	def show_eff(self):
-		print "EFF"
+		print("EFF")
 
 
 class Health(game.Entity):
@@ -42,6 +42,3 @@ class Health(game.Entity):
 		self.image = pygame.image.load('images/pipboy.png')
 		self.rect = self.image.get_rect()
 		self.image = self.image.convert()
-		text = config.FONTS[18].render("Grieve - Level 27", True, (105, 251, 187), (0, 0, 0))
-		text_width = text.get_size()[0]
-		self.image.blit(text, (config.WIDTH / 2 - 8 - text_width / 2, 250))

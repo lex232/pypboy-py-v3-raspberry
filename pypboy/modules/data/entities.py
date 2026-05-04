@@ -28,13 +28,24 @@ class Map(game.Entity):
 		self.image.blit(text, (10, 10))
 
 	def fetch_map(self, position, radius):
-		#(-5.9234923, 54.5899493)
 		self._fetching = threading.Thread(target=self._internal_fetch_map, args=(position, radius))
 		self._fetching.start()
 
+	def fetch_overpass_map(self, position, radius):
+		self._fetching = threading.Thread(target=self._internal_fetch_overpass, args=(position, radius))
+		self._fetching.start()
+
+	def _internal_fetch_overpass(self, position, radius):
+		try:
+			self._mapper.fetch_overpass(position, radius)
+		finally:
+			self.redraw_map()
+
 	def _internal_fetch_map(self, position, radius):
-		self._mapper.fetch_by_coordinate(position, radius)
-		self.redraw_map()
+		try:
+			self._mapper.fetch_by_coordinate(position, radius)
+		finally:
+			self.redraw_map()
 
 	def update(self, *args, **kwargs):
 		super(Map, self).update(*args, **kwargs)
@@ -53,14 +64,10 @@ class Map(game.Entity):
 					2
 			)
 		for tag in self._mapper.transpose_tags((self._size / coef, self._size / coef), (self._size / 2, self._size / 2)):
-			if tag[3] in config.AMENITIES:
-				image = config.AMENITIES[tag[3]]
-			else:
-				print "Unknown amenity: %s" % tag[3]
-				image = config.MAP_ICONS['misc']
+			image = config.AMENITIES.get(tag[3], config.MAP_ICONS['misc'])
 			pygame.transform.scale(image, (10, 10))
 			self._map_surface.blit(image, (tag[1], tag[2]))
-			text = config.FONTS[12].render(tag[0], True, (95, 255, 177), (0, 0, 0))
+			text = config.MAP_FONT.render(tag[0], True, (95, 255, 177), (0, 0, 0))
 			self._map_surface.blit(text, (tag[1] + 17, tag[2] + 4))
 		
 		self.image.blit(self._map_surface, (0, 0), area=self._render_rect)
@@ -158,15 +165,11 @@ class MapGrid(game.Entity):
 			self.tags.update(square.tags)
 		self._tag_surface.fill((0, 0, 0))
 		for name in self.tags:
-			if self.tags[name][2] in config.AMENITIES:
-				image = config.AMENITIES[self.tags[name][2]]
-			else:
-				print "Unknown amenity: %s" % self.tags[name][2]
-				image = config.MAP_ICONS['misc']
+			image = config.AMENITIES.get(self.tags[name][2], config.MAP_ICONS['misc'])
 			pygame.transform.scale(image, (10, 10))
 			self.image.blit(image, (self.tags[name][0], self.tags[name][1]))
 			# try:
-			text = config.FONTS[12].render(name, True, (95, 255, 177), (0, 0, 0))
+			text = config.MAP_FONT.render(name, True, (95, 255, 177), (0, 0, 0))
 			# text_width = text.get_size()[0]
 			# 	pygame.draw.rect(
 			# 		self,
@@ -181,7 +184,7 @@ class MapGrid(game.Entity):
 			# 		(self.tags[name][0], self.tags[name][1], text_width + 4, 15),
 			# 		1
 			# 	)
-			# except Exception, e:
+			# except Exception as e:
 			# 	print(e)
 			# 	pass
 
@@ -234,7 +237,7 @@ class RadioStation(game.Entity):
 		for f in os.listdir(self.directory):
 			if f.endswith(".mp3") or f.endswith(".ogg") or f.endswith(".wav"):
 				files.append(self.directory + f)
-		print files
+		print(files)
 		return files
 
 

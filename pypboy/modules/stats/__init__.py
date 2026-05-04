@@ -1,9 +1,9 @@
 from pypboy import BaseModule
 from pypboy.modules.stats import status
-from pypboy.modules.stats import special
-from pypboy.modules.stats import skills
-from pypboy.modules.stats import perks
-from pypboy.modules.stats import general
+from pypboy.modules.stats import clock
+from pypboy.modules.stats import currency
+from pypboy.modules.stats import weather
+from pypboy.modules.data import world_map
 
 
 class Module(BaseModule):
@@ -14,9 +14,9 @@ class Module(BaseModule):
 	def __init__(self, *args, **kwargs):
 		self.submodules = [
 			status.Module(self),
-			special.Module(self),
-			skills.Module(self),
-			perks.Module(self),
-			general.Module(self)
+			clock.Module(self),
+			currency.Module(self),
+			weather.Module(self),
+			world_map.Module(self)
 		]
 		super(Module, self).__init__(*args, **kwargs)

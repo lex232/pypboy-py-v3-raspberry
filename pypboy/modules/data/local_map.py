@@ -13,7 +13,7 @@ class Module(pypboy.SubModule):
 		super(Module, self).__init__(*args, **kwargs)
 		#mapgrid = entities.MapGrid((-5.9302032, 54.5966701), (config.WIDTH - 8, config.HEIGHT - 80))
 		mapgrid = entities.Map(config.WIDTH, pygame.Rect(4, (config.WIDTH - config.HEIGHT) / 2, config.WIDTH - 8, config.HEIGHT - 80))
-		mapgrid.fetch_map(config.MAP_FOCUS, 0.003)
+		mapgrid.fetch_map(next(iter(config.CITIES.values()))[:2], 0.0045)
 		self.add(mapgrid)
 		mapgrid.rect[0] = 4
 		mapgrid.rect[1] = 40

@@ -1,13 +1,25 @@
 import pygame
 
-WIDTH = 320
-HEIGHT = 240
+WIDTH = 480
+HEIGHT = 320
 
 # OUTPUT_WIDTH = 320
 # OUTPUT_HEIGHT = 240
 
-#MAP_FOCUS = (-5.9347681, 54.5889076)
-MAP_FOCUS = (-102.3016145, 21.8841274)
+# City: lat, lon, gmt
+CITIES = {
+    "ROSTOV-ON-DON":    (47.204235,  39.733716,   3),
+    "SAINT-PETERSBURG": (59.9386300, 30.3141300,  3),
+    "NOVOROSSIYSK":     (44.7233000, 37.7688000,  3),
+    "SOCHI":            (43.5809670, 39.7124260,  3),
+    "DOMBAY":           (43.2896170, 41.6235200,  3),
+    "KRASNODAR":        (45.0355000, 38.9753000,  3),
+    "NORDKAPP":         (71.1690000, 25.7847000,  1),
+    "CASABLANCA":       (33.5731000, -7.5898000,  1),
+    "ANTALYA":          (36.8969000, 30.7133000,  3),
+}
+
+WEATHER_CITY = "ROSTOV-ON-DON"
 
 EVENTS = {
 	'SONG_END': pygame.USEREVENT + 1
@@ -27,18 +39,21 @@ ACTIONS = {
 }
 
 # Using GPIO.BCM as mode
+# raspi-gpio get 4,17,27,22,23
 GPIO_ACTIONS = {
-    4: "module_stats", #GPIO 4
-	14: "module_items", #GPIO 14
-	15: "module_data", #GPIO 15
-	17:	"knob_1", #GPIO 17
-	18: "knob_2", #GPIO 18
-	7: "knob_3", #GPIO 7
-	22: "knob_4", #GPIO 22
-	23: "knob_5", #GPIO 27
-#	31: "dial_up", #GPIO 23
-	27: "dial_down" #GPIO 7
+#    18: "module_stats", #GPIO 4
+#	14: "module_items", #GPIO 14
+#	15: "module_data", #GPIO 15
+	4:	"knob_1",
+	18: "knob_2",
+	27: "knob_3",
+	22: "knob_4",
+	23: "knob_5",
 }
+
+# Rotary encoder pins (BCM): A=15, B=14
+# CW rotation → "dial_up", CCW → "dial_down"
+ENCODER_PINS = (15, 14)
 
 
 MAP_ICONS = {
@@ -84,3 +99,13 @@ pygame.font.init()
 FONTS = {}
 for x in range(10, 28):
 	FONTS[x] = pygame.font.Font('monofonto.ttf', x)
+
+_cyrillic_candidates = ['dejavusansmono', 'dejavusans', 'liberationmono', 'arial', 'couriernew']
+MAP_FONT = None
+for _f in _cyrillic_candidates:
+	_path = pygame.font.match_font(_f)
+	if _path:
+		MAP_FONT = pygame.font.Font(_path, 11)
+		break
+if MAP_FONT is None:
+	MAP_FONT = pygame.font.Font(None, 11)

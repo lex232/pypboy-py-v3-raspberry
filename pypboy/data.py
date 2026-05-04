@@ -1,4 +1,6 @@
-import xmltodict
+import io
+import os
+import xml.etree.ElementTree as ET
 import requests
 import numpy 
 from numpy.fft import fft 
@@ -38,10 +40,10 @@ class Maps(object):
 		lng = coords[1]
 
 		return self.fetch_area([
-				lat - self.GRID_SIZE,
 				lng - self.GRID_SIZE,
-				lat + self.GRID_SIZE,
-				lng + self.GRID_SIZE
+				lat - self.GRID_SIZE,
+				lng + self.GRID_SIZE,
+				lat + self.GRID_SIZE
 		])
 
 	def fetch_area(self, bounds):
@@ -51,62 +53,113 @@ class Maps(object):
 				bounds[0] + self.width,
 				bounds[1] + self.height
 		)
-		url = "http://www.openstreetmap.org/api/0.6/map?bbox=%f,%f,%f,%f" % (
-						bounds[0],
-						bounds[1],
-						bounds[2],
-						bounds[3]
-				)
-		print "[Fetching maps... (%f, %f) to (%f, %f)]" % (
-						bounds[0],
-						bounds[1],
-						bounds[2],
-						bounds[3]
-				)
-		while True:
-			try:
-				response = requests.get(url)
-			except:
-				pass
-			else:
-				break
-		osm_dict = xmltodict.parse(response.text.encode('UTF-8'))
-		try:
-			for node in osm_dict['osm']['node']:
-				self.nodes[node['@id']] = node
-				if 'tag' in node:
-					for tag in node['tag']:
-						try:
-							#Named Amenities
-							if tag["@k"] == "name":
-								for tag2 in node['tag']:
-									if tag2["@k"] == "amenity":
-										amenity = tag2["@v"]
-								self.tags.append((float(node['@lat']), float(node['@lon']), tag["@v"], amenity))
-							#Personal Addresses - Removed
-							#if tag["@k"] == "addr:housenumber":
-							#	   for t2 in node['tag']:
-							#			   if t2["@k"] == "addr:street":
-							#					   self.tags.append((float(node['@lat']), float(node['@lon']),tag["@v"]+" "+t2["@v"]))
-						except Exception, e:
-							pass
 
-			for way in osm_dict['osm']['way']:
-				waypoints = []
-				for node_id in way['nd']:
-					node = self.nodes[node_id['@ref']]
-					waypoints.append((float(node['@lat']), float(node['@lon'])))
-				self.ways.append(waypoints)
-		except Exception, e:
-			print e
-			#print response.text
+		cache_dir = os.path.join(os.path.dirname(__file__), '..', 'cache')
+		os.makedirs(cache_dir, exist_ok=True)
+		cache_key = "%.6f_%.6f_%.6f_%.6f" % (bounds[0], bounds[1], bounds[2], bounds[3])
+		cache_file = os.path.join(cache_dir, "map_%s.xml" % cache_key)
+
+		if os.path.exists(cache_file):
+			print("[Map loaded from cache]")
+			with open(cache_file, 'r', encoding='UTF-8') as f:
+				xml_text = f.read()
+		else:
+			url = "http://www.openstreetmap.org/api/0.6/map?bbox=%f,%f,%f,%f" % (
+							bounds[0],
+							bounds[1],
+							bounds[2],
+							bounds[3]
+					)
+			print("[Fetching maps... (%f, %f) to (%f, %f)]" % (
+							bounds[0],
+							bounds[1],
+							bounds[2],
+							bounds[3]
+					))
+			try:
+				response = requests.get(url, timeout=60)
+				response.raise_for_status()
+			except Exception as e:
+				print("[Map fetch error: %s]" % e)
+				return
+			xml_text = response.text
+			try:
+				with open(cache_file, 'w', encoding='UTF-8') as f:
+					f.write(xml_text)
+			except Exception as e:
+				print("[Map cache write error: %s]" % e)
+
+		self.nodes = {}
+		self.ways = []
+		self.tags = []
+		try:
+			context = ET.iterparse(io.StringIO(xml_text), events=('end',))
+			for event, elem in context:
+				if elem.tag == 'node':
+					node_id = elem.get('id')
+					lat, lon = elem.get('lat'), elem.get('lon')
+					if lat and lon:
+						self.nodes[node_id] = (lat, lon)
+						node_tags = {t.get('k'): t.get('v') for t in elem.findall('tag')}
+						if 'name' in node_tags and 'amenity' in node_tags:
+							self.tags.append((float(lat), float(lon), node_tags['name'], node_tags['amenity']))
+					elem.clear()
+				elif elem.tag == 'way':
+					waypoints = []
+					for nd in elem.findall('nd'):
+						ref = nd.get('ref')
+						if ref in self.nodes:
+							lat, lon = self.nodes[ref]
+							waypoints.append((float(lat), float(lon)))
+					if len(waypoints) >= 2:
+						self.ways.append(waypoints)
+					elem.clear()
+		except Exception as e:
+			print("[Map parse error: %s]" % e)
+
+	def fetch_overpass(self, coords, radius):
+		lat, lon = coords[0], coords[1]
+		self.ways  = []
+		self.nodes = {}
+		self.tags  = []
+		self.width  = radius
+		self.height = radius
+		self.origin = (lon, lat)
+		query = (
+			"[out:xml][bbox:%f,%f,%f,%f];"
+			"(way[\"highway\"~\"motorway|trunk|primary\"];);"
+			"out geom;"
+		) % (lat - radius, lon - radius, lat + radius, lon + radius)
+		try:
+			r = requests.get(
+				"https://overpass-api.de/api/interpreter",
+				params={"data": query},
+				timeout=30,
+			)
+			r.raise_for_status()
+		except Exception as e:
+			print("[Overpass error: %s]" % e)
+			return
+		try:
+			root = ET.fromstring(r.text.encode("UTF-8"))
+			for way in root.iter('way'):
+				pts = []
+				for nd in way.findall('nd'):
+					lat, lon = nd.get('lat'), nd.get('lon')
+					if lat and lon:
+						pts.append((float(lat), float(lon)))
+				if len(pts) >= 2:
+					self.ways.append(pts)
+		except Exception as e:
+			print("[Overpass data error: %s]" % e)
 
 	def fetch_by_coordinate(self, coords, range):
+		lat, lon = coords[0], coords[1]
 		return self.fetch_area((
-				coords[0] - range,
-				coords[1] - range,
-				coords[0] + range,
-				coords[1] + range
+				lon - range,
+				lat - range,
+				lon + range,
+				lat + range
 		))
 
 	def transpose_ways(self, dimensions, offset, flip_y=True):
